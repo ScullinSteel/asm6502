@@ -1,0 +1,36 @@
+#! /usr/bin/env node
+// -*- mode: Javascript; -*-
+
+var fs = require('fs');
+var sys = require('sys');
+var GetOpt = require('node-getopt');
+
+var ASM = require('../js/asm6502');
+var asm = new ASM();
+
+var getopt = new GetOpt([
+    ['v', 'verbose', 'Verbose mode']
+]);
+
+cli = getopt.bindHelp().parseSystem();
+
+if (cli.argv.length > 0) {
+    for (var idx = 0; idx < cli.argv.length; idx++) {
+        var code = fs.readFileSync(cli.argv[idx]).toString();
+        var binary = asm.assemble(code, cli.options);
+
+        var addr = 0x300;
+        var len = binary.length;
+
+        for (var off = 0; off < len; off += 8) {
+            var str = ASM.toHex(addr + off, 4) + ':';
+            var bytes = binary.splice(0, 8);
+            for (var jdx = 0; jdx < bytes.length; jdx++) {
+                str += ' ' + ASM.toHex(bytes[jdx], 2);
+            }
+            console.log(str);
+        }
+    }
+} else {
+    console.log(getopt.getHelp());
+}
