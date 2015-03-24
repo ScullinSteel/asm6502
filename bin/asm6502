@@ -9,26 +9,39 @@ var ASM = require('../js/asm6502');
 var asm = new ASM();
 
 var getopt = new GetOpt([
-    ['v', 'verbose', 'Verbose mode']
+    ['v', 'verbose', 'Verbose mode'],
+    ['h', 'hex', 'Output hex dump'],
+    ['o', 'outfile', 'Output file name']
 ]);
 
 cli = getopt.bindHelp().parseSystem();
 
 if (cli.argv.length > 0) {
     for (var idx = 0; idx < cli.argv.length; idx++) {
-        var code = fs.readFileSync(cli.argv[idx]).toString();
-        var binary = asm.assemble(code, cli.options);
+        var filename = cli.argv[idx];
+        var code = fs.readFileSync(filename).toString();
+        var obj = asm.assemble(code, cli.options);
 
-        var addr = 0x300;
-        var len = binary.length;
+        var addr = obj.org;
+        var len = obj.binary.length;
 
-        for (var off = 0; off < len; off += 8) {
-            var str = ASM.toHex(addr + off, 4) + ':';
-            var bytes = binary.splice(0, 8);
-            for (var jdx = 0; jdx < bytes.length; jdx++) {
-                str += ' ' + ASM.toHex(bytes[jdx], 2);
+        if (cli.options.hex) {
+            for (var off = 0; off < len; off += 8) {
+                var str = ASM.toHex(addr + off, 4) + ':';
+                var bytes = obj.binary.splice(0, 8);
+                for (var jdx = 0; jdx < bytes.length; jdx++) {
+                    str += ' ' + ASM.toHex(bytes[jdx], 2);
+                }
+                console.log(str);
             }
-            console.log(str);
+        } else {
+            var outfile;
+            if (cli.options.outfile) {
+                outfile = cli.options.outfile;
+            } else {
+                outfile = filename.replace(/\.*[a-z]+$/i, '.bin');
+            }
+            fs.writeFileSync(outfile, new Buffer(obj.binary));
         }
     }
 } else {

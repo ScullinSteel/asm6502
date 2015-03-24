@@ -1,4 +1,5 @@
 var _ = require('lodash');
+var sprintf = require('sprintf');
 var opcodes = require('./opcodes');
 
 var BIN_DIGITS = '01';
@@ -26,6 +27,7 @@ function toBinary(v) {
 }
 
 var ORG = 0x8000;
+var _org = ORG;
 
 var PSEUDO_OPS = {
     ASC: true,  // ASCII String
@@ -145,7 +147,7 @@ function ASM6502() {
                 args.unshift(lineno + ':');
                 args.unshift('Line');
                 if (pass) {
-                    console.error.apply(console, args);
+                    console.log.apply(console, args);
                 }
             }
 
@@ -267,7 +269,8 @@ function ASM6502() {
                             }
                             break;
                         case 'ORG':
-                            _pc = arg;
+                            _org = arg;
+                            _pc = _org;
                             break;
                         case 'REV':
                             if (data !== undefined) {
@@ -375,11 +378,20 @@ function ASM6502() {
         },
 
         assemble: function asm6502_assemble(buffer, options) {
-            function log(line, lineno, bytes) {
-                var bytestr = _.map(bytes, function(b) {
+            function verbose(line, lineno, bytes) {
+                bytes = bytes.slice();
+                var truncBytes = bytes.splice(0, 3);
+                var bytestr = _.map(truncBytes, function(b) {
                     return toHex(b, 2);
                 }).join(' ');
-                console.log('%s %d %s', bytestr, lineno, line);
+                console.log(sprintf('%-9s %4d  %s', bytestr, lineno, line));
+                while (bytes.length) {
+                    truncBytes = bytes.splice(0, 3);
+                    bytestr = _.map(truncBytes, function(b) {
+                        return toHex(b, 2);
+                    }).join(' ');
+                    console.log(bytestr);
+                }
             }
             
             _symbols = {};
@@ -387,19 +399,23 @@ function ASM6502() {
 
             var lines = buffer.split(/[\r\n]+/);
             for (var pass = 0; pass < 2; pass++) {
-                _pc = ORG;
+                _org = ORG;
+                _pc = _org;
                 _bytes = [];
                 for (var idx = 0; idx < lines.length; idx++) {
                     var line = lines[idx];
                     var lineno = idx + 1;
                     var bytes = this.assembleLine(line, lineno, pass);
                     if (options.verbose && pass) {
-                        log(line, lineno, bytes);
+                        verbose(line, lineno, bytes);
                     }
                     _bytes = _bytes.concat(bytes);
                 }
             }
-            return _bytes;
+            return {
+                org: _org,
+                binary: _bytes
+            }
         }
     };
 }
